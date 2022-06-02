@@ -54,4 +54,31 @@ class MemberJpaRepositoryTest {
         count = memberJpaRepository.count();
         assertThat(count).isEqualTo(0);
     }
+
+    @Test
+    void findByUsernameAndAgeTest() {
+        Member m1 = new Member("aaa", 10);
+        Member m2 = new Member("aaa", 20);
+
+        memberJpaRepository.save(m1);
+        memberJpaRepository.save(m2);
+
+        List<Member> findMembers = memberJpaRepository.findByUsernameAndAgeGreaterThan("aaa", 15);
+
+        assertThat(findMembers.size()).isEqualTo(1);
+        assertThat(findMembers.get(0).getUsername()).isEqualTo("aaa");
+    }
+
+    @Test
+    void findByUsernameNamedQueryTest() {
+        Member m1 = new Member("aaa", 10);
+        Member m2 = new Member("aaa", 20);
+
+        memberJpaRepository.save(m1);
+        memberJpaRepository.save(m2);
+
+        List<Member> findMembers = memberJpaRepository.findByUsername("aaa");
+
+        assertThat(findMembers.size()).isEqualTo(2);
+    }
 }
