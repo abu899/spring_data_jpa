@@ -1,9 +1,6 @@
 package study.datajpa.entity;
 
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import javax.persistence.*;
 
@@ -21,7 +18,7 @@ public class Member {
     @Column(name = "member_id")
     private Long id;
     private String username;
-    private int age;
+    @Setter private int age;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "team_id")

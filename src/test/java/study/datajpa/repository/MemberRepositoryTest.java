@@ -3,11 +3,16 @@ package study.datajpa.repository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import study.datajpa.dto.MemberDto;
 import study.datajpa.entity.Member;
 import study.datajpa.entity.Team;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,6 +23,8 @@ class MemberRepositoryTest {
 
     @Autowired MemberRepository memberRepository;
     @Autowired TeamRepository teamRepository;
+    @PersistenceContext
+    EntityManager em;
 
     @Test
     void memberTest() {
@@ -137,5 +144,101 @@ class MemberRepositoryTest {
         List<Member> members = memberRepository.findByNames(List.of("aaa", "bbb"));
 
         assertThat(members.size()).isEqualTo(2);
+    }
+
+    @Test
+    void pagingTest() {
+        memberRepository.save(new Member("member1", 10));
+        memberRepository.save(new Member("member2", 10));
+        memberRepository.save(new Member("member3", 10));
+        memberRepository.save(new Member("member4", 10));
+        memberRepository.save(new Member("member5", 10));
+        memberRepository.save(new Member("member6", 10));
+
+        PageRequest pageRequest = PageRequest.of(0, 3, Sort.by(Sort.Direction.DESC, "username"));
+
+        Page<Member> page = memberRepository.findByAge(10, pageRequest);
+
+        List<Member> content = page.getContent();
+
+        assertThat(content.size()).isEqualTo(3);
+        assertThat(page.getNumber()).isEqualTo(0);
+        assertThat(page.getTotalElements()).isEqualTo(6);
+        assertThat(page.getTotalPages()).isEqualTo(2);
+        assertThat(page.isFirst()).isTrue();
+        assertThat(page.hasNext()).isTrue();
+
+        Page<MemberDto> toDto = page.map(member -> new MemberDto(member.getId(), member.getUsername(), null));
+    }
+
+    @Test
+    void bulkUpdateTest() {
+        memberRepository.save(new Member("member1", 15));
+        memberRepository.save(new Member("member2", 2));
+        memberRepository.save(new Member("member3", 11));
+        memberRepository.save(new Member("member4", 13));
+        memberRepository.save(new Member("member5", 33));
+        memberRepository.save(new Member("member6", 22));
+
+        int num = memberRepository.bulkAgePlus(10); // 영속성 컨텍스트와 상관없이 데이터가 갱신됨(즉 더티체킹안됨)
+
+//        em.flush();
+//        em.clear();// 따라서 EntityManager를 초기화해줘야한다 , @Modifying(clearAutomatically = true)
+
+        List<Member> result = memberRepository.findByUsername("member6");
+        Member member6 = result.get(0);
+        System.out.println("member6 = " + member6);
+
+        assertThat(num).isEqualTo(5);
+    }
+
+    @Test
+    void findMemberLazy() {
+        //member1 -> teamA
+        //member2 -> teamB
+
+        Team teamA = new Team("teamA");
+        Team teamB = new Team("teamB");
+        teamRepository.save(teamA);
+        teamRepository.save(teamB);
+
+        Member member1 = Member.createMember("member1", 10, teamA);
+        Member member2 = Member.createMember("member2", 20, teamB);
+        memberRepository.save(member1);
+        memberRepository.save(member2);
+
+        em.flush();
+        em.clear();
+
+        List<Member> members = memberRepository.findAll();
+//        List<Member> members = memberRepository.findMemberFetchJoin();
+        for (Member member : members) {
+            System.out.println("member = " + member.getUsername());
+            System.out.println("member.getTeam().getClass() = " + member.getTeam().getClass());
+            System.out.println("member.getTeam() = " + member.getTeam());
+        }
+    }
+
+    @Test
+    void queryHintTest() {
+        Member member1 = memberRepository.save(new Member("member1", 10));
+        em.flush();
+        em.clear();
+
+        Member findMember = memberRepository.findReadOnlyByUsername("member1");
+        findMember.setAge(22);
+
+        em.flush();
+    }
+
+    @Test
+    void queryLockTest() {
+        Member member1 = memberRepository.save(new Member("member1", 10));
+        em.flush();
+        em.clear();
+
+        Member findMember = memberRepository.findLockByUsername("member1");
+
+        em.flush();
     }
 }
